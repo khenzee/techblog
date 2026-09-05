@@ -16,17 +16,17 @@ const userSchema = mongoose.Schema({
         required: true,
         min: 6,
         trim: true,
-        slected: false
+        selected: false
     },
     emailVerified: {
         type: Boolean,
         default: false
     },
     avatar: {
-        type: string
+        type: String
     },
     role: {
-        type: string,
+        type: String,
         enum: ["admin", "author", "reader"],
         default: "reader"
     }

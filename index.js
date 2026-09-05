@@ -6,13 +6,6 @@ import { connectDB } from "./src/config/database.js";
 
 const PORT = 8000
 
-app.get("/", (req, res) => {
-    return res.json({
-        name: "emma",
-        course: "backend",
-        greet: "hello emma, welcome to backend class"
-    })
-})
 
 const server = async () => {
     try {
