@@ -6,16 +6,17 @@ export const Register = async (req, res) => {
     try {
         const { fullname, email, password, role, avatar } = req.body
         
+        // check if the required! input is not available
         if (!fullname || !email || !password) {
             return res.status(400).json({
                 message: "fullname, email and password is required"
             })
         }
-
+        // Check if you have created an account before
         const existingUser = await User.findOne({email})
         if (existingUser) {
             return res.status(400).json({
-                message: "user already exist with this email"
+                message: "user already exist with this email. go ahead and login"
             })
         }
 
