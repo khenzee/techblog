@@ -19,7 +19,7 @@ export const create = async (req, res) => {
             thumbnail: thumbnail || "",
             category: category || "",
             slug,
-            author
+            author: req.user
         })
 
     } catch (error) {
