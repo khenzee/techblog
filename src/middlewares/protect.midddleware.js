@@ -33,7 +33,7 @@ export const authenticate = async (req, res, next) =>{
 export const authorize = (role) =>{
     return async (req, res, next) =>{
         if(!role.includes(req.user.role)) {
-            res.status(403).json({message:"Forbidden: Unauthorized role"})
+            return res.status(403).json({message:"Forbidden: Unauthorized role"})
         }
         next()
     }
