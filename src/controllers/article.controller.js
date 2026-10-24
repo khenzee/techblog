@@ -5,21 +5,36 @@ import { Category } from "../models/category.model.js";
 // Post request ---> create article
 export const create = async (req, res) => {
   try {
-    const { title, content, thumbnail, category } = req.body;
-    if (!title || !content || !category) {
+    const { title, content, category } = req.body ?? {};
+    const requiredFields = { title, content, category };
+    const missingFields = Object.entries(requiredFields)
+      .filter(([, value]) => typeof value !== "string" || !value.trim())
+      .map(([field]) => field);
+
+    if (missingFields.length) {
       return res
         .status(400)
-        .json({ message: "title, content and category is required" });
-      }
-      const existingCategory = await Category.findOne({name: category})
-      if(!existingCategory){
-          res.status(404).json({message: "category not found"})
-      }
+        .json({
+          message: `Missing required fields: ${missingFields.join(", ")}`,
+          receivedFields: Object.keys(req.body ?? {}),
+        });
+    }
+    if (!req.file?.path) {
+      return res.status(400).json({
+        message: 'thumbnail image is required; send it as a file in the "thumbnail" form-data field',
+      });
+    }
+    const existingCategory = await Category.findOne({ name: category });
+    if (!existingCategory) {
+      return res.status(404).json({ message: "category not found" });
+    }
+
+    const fileUrl = req.file.path;
     const slug = slugify(title, { trim: true, lower: true });
     const article = await Article.create({
       title,
       content,
-      thumbnail: thumbnail || "",
+      thumbnail: fileUrl,
       category: existingCategory._id,
       slug,
       author: req.user._id,
@@ -47,20 +62,37 @@ export const allArticles = async (req, res) => {
     const limit = Number(req.query.limit ?? 10);
     const allowedSortFields = ["title", "createdAt", "updatedAt", "status"];
 
-    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
-      return res.status(400).json({ message: "page must be >= 1 and limit must be between 1 and 100" });
+    if (
+      !Number.isInteger(page) ||
+      page < 1 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    ) {
+      return res
+        .status(400)
+        .json({
+          message: "page must be >= 1 and limit must be between 1 and 100",
+        });
     }
-    if (!allowedSortFields.includes(sortBy) || !["asc", "desc"].includes(order)) {
+    if (
+      !allowedSortFields.includes(sortBy) ||
+      !["asc", "desc"].includes(order)
+    ) {
       return res.status(400).json({ message: "Invalid sortBy or order" });
     }
     if (status !== undefined && !["draft", "published"].includes(status)) {
-      return res.status(400).json({ message: "status must be draft or published" });
+      return res
+        .status(400)
+        .json({ message: "status must be draft or published" });
     }
 
     const filter = { deletedAt: null };
     if (status) filter.status = status;
     if (category?.trim()) {
-      const escapedCategory = category.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escapedCategory = category
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const matchingCategory = await Category.findOne({
         name: { $regex: `^${escapedCategory}$`, $options: "i" },
       }).select("_id");
@@ -70,7 +102,9 @@ export const allArticles = async (req, res) => {
     }
     if (author) filter.author = author;
     if (search?.trim()) {
-      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escapedSearch = search
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
         { title: { $regex: escapedSearch, $options: "i" } },
         { content: { $regex: escapedSearch, $options: "i" } },
@@ -80,20 +114,26 @@ export const allArticles = async (req, res) => {
     const sort = { [sortBy]: order === "asc" ? 1 : -1 };
     const skip = (page - 1) * limit;
     const [articles, totalArticles] = await Promise.all([
-      Article.find(filter).populate("category", "name").sort(sort).skip(skip).limit(limit),
+      Article.find(filter)
+        .populate("category", "name")
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
       Article.countDocuments(filter),
     ]);
 
-    return res.status(200).json({
-      message: "articles fetched successfully",
-      pagination: {
-        page,
-        limit,
-        totalArticles,
-        totalPages: Math.ceil(totalArticles / limit),
-      },
-      articles,
-    });
+    return res
+      .status(200)
+      .json({
+        message: "articles fetched successfully",
+        pagination: {
+          page,
+          limit,
+          totalArticles,
+          totalPages: Math.ceil(totalArticles / limit),
+        },
+        articles,
+      });
   } catch (error) {
     return res
       .status(500)
